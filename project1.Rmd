@@ -1,0 +1,88 @@
+---
+title: "Prediction algorithm for given data"
+author: "Alokik"
+date: "16/11/2020"
+output: html_document
+---
+
+# Downloading and saving of data
+```{r echo=TRUE, message=FALSE}
+# download the training data 
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "training.csv")
+
+# download the test data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "testing.csv")
+
+
+# loading required libraries
+library(caret)
+library(e1071)
+
+
+# uploading the training and testing data
+set.seed(1234)
+Traindata <- read.csv("training.csv", na.strings=c("NA","#DIV/0!", ""))
+Testdata <- read.csv("testing.csv", na.strings=c("NA","#DIV/0!", ""))
+```
+# Exploaratory analysis and preprocessing of data
+```{r echo=TRUE}
+# Delete columns with all missing values
+Traindata<-Traindata[,colSums(is.na(Traindata)) == 0]
+Testdata <-Testdata[,colSums(is.na(Testdata)) == 0]
+
+# Delete variables that are irrelevant to our current project: user_name, raw_timestamp_part_1, raw_timestamp_part_,2 cvtd_timestamp, new_window, and  num_window (columns 1 to 7). 
+Traindata   <-Traindata[,-c(1:7)]
+Testdata <-Testdata[,-c(1:7)]
+```
+
+
+# Cross validation
+For Cross validation the given training data will be divided into subsets of 2.
+  1. training subset of 70% of original training data.
+  2. testing subset of 30% of original training data.
+  
+```{r echo=TRUE}
+
+inTrain <- createDataPartition(Traindata$classe, p = 0.75, list = FALSE)
+
+# subset
+training <- Traindata[inTrain, ]
+training$classe <- as.factor(training$classe)
+testing <- Traindata[-inTrain, ]
+testing$classe <- as.factor(testing$classe)
+```
+
+## Model building
+
+There will be two models, one is regression tree and another is Random forest
+```{r echo=TRUE}
+
+# regression tree
+library(rpart)
+modDT <- train(classe~., data = training, method = "rpart")
+predDT <-  predict(modDT, testing)
+
+DT <- confusionMatrix(testing$classe, predDT)
+
+
+# linear discrimination analysis
+modRF <- train(classe~., data = training, method = "rf")
+predRF <- predict(modRF, testing)
+
+RF <- confusionMatrix(testing$classe, predRF)
+
+data.frame(regression_tree= DT$overall["Accuracy"], Random_forest = RF$overall["Accuracy"])
+```
+**From the above result we can say randam forest method performed better than regression tree with accuracy 0.9945 (95% CI : (0.992, 0.9964)) compared to Regression Tree model with 0.4945 (95% CI : (0.4804, 0.5086)). The Random forest method is chosen for analysis. The expected out-of-sample error is estimated at 0.0065.**
+
+
+# Submission
+The result of Test data is:
+```{r}
+predict(modRF, Testdata)
+
+```
+
+
+
+
